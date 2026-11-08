@@ -584,7 +584,7 @@ async function renderDoubanCards(data, container) {
         fragment.appendChild(emptyEl);
     } else {
         // 循环创建每个影视卡片
-        const cards = await Promise.all(data.subjects.map(async (item) => {
+        const cards = data.subjects.map((item) => {
             const card = document.createElement("div");
             card.className = "bg-[#111] hover:bg-[#222] transition-all duration-300 rounded-lg overflow-hidden flex flex-col transform hover:scale-105 shadow-md hover:shadow-lg";
             
@@ -598,15 +598,14 @@ async function renderDoubanCards(data, container) {
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
             
-            const originalCoverUrl = item.cover;
-            const proxiedCoverUrl = await buildDoubanCoverUrl(originalCoverUrl);
+            const originalCoverUrl = item.cover || '';
             
-            // 为不同设备优化卡片布局
+            // 为不同设备优化卡片布局：直接使用原图URL配合no-referrer，避免代理失败触发onerror重复渲染
             card.innerHTML = `
                 <div class="relative w-full aspect-[2/3] overflow-hidden cursor-pointer" onclick="fillAndSearchWithDouban('${safeTitle}')">
-                    <img src="${proxiedCoverUrl || originalCoverUrl}" alt="${safeTitle}" 
+                    <img src="${originalCoverUrl || 'image/nomedia.png'}" alt="${safeTitle}" 
                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                        onerror="this.onerror=null; this.src='${originalCoverUrl}'; this.classList.add('object-contain');"
+                        onerror="this.onerror=null; this.src='image/nomedia.png'; this.classList.add('object-contain');"
                         loading="lazy" referrerpolicy="no-referrer">
                     <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60"></div>
                     <div class="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm">
@@ -628,7 +627,7 @@ async function renderDoubanCards(data, container) {
             `;
             
             return card;
-        }));
+        });
 
         cards.forEach(card => fragment.appendChild(card));
     }
