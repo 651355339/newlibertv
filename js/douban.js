@@ -52,19 +52,29 @@ let doubanMovieTvCurrentSwitch = 'movie';
 let doubanCurrentTag = '热门';
 let doubanPageStart = 0;
 const doubanPageSize = 16; // 一次显示的项目数量
+let isDoubanInitialized = false;
+let isDoubanLoading = false;
+let currentDoubanRequestId = 0;
+let currentDoubanAbortController = null;
 
 // 初始化豆瓣功能
 function initDouban() {
+    if (isDoubanInitialized) {
+        updateDoubanVisibility();
+        return;
+    }
+    isDoubanInitialized = true;
+
     // 设置豆瓣开关的初始状态
     const doubanToggle = document.getElementById('doubanToggle');
     if (doubanToggle) {
-        const isEnabled = localStorage.getItem('doubanEnabled') === 'true';
+        const isEnabled = localStorage.getItem('doubanEnabled') !== 'false';
         doubanToggle.checked = isEnabled;
         
         // 设置开关外观
         const toggleBg = doubanToggle.nextElementSibling;
-        const toggleDot = toggleBg.nextElementSibling;
-        if (isEnabled) {
+        const toggleDot = toggleBg ? toggleBg.nextElementSibling : null;
+        if (isEnabled && toggleBg && toggleDot) {
             toggleBg.classList.add('bg-pink-600');
             toggleDot.classList.add('translate-x-6');
         }
@@ -75,23 +85,19 @@ function initDouban() {
             localStorage.setItem('doubanEnabled', isChecked);
             
             // 更新开关外观
-            if (isChecked) {
-                toggleBg.classList.add('bg-pink-600');
-                toggleDot.classList.add('translate-x-6');
-            } else {
-                toggleBg.classList.remove('bg-pink-600');
-                toggleDot.classList.remove('translate-x-6');
+            if (toggleBg && toggleDot) {
+                if (isChecked) {
+                    toggleBg.classList.add('bg-pink-600');
+                    toggleDot.classList.add('translate-x-6');
+                } else {
+                    toggleBg.classList.remove('bg-pink-600');
+                    toggleDot.classList.remove('translate-x-6');
+                }
             }
             
             // 更新显示状态
             updateDoubanVisibility();
         });
-        
-        // 初始更新显示状态
-        updateDoubanVisibility();
-
-        // 滚动到页面顶部
-        window.scrollTo(0, 0);
     }
 
     // 加载用户标签
@@ -106,10 +112,11 @@ function initDouban() {
     // 换一批按钮事件监听
     setupDoubanRefreshBtn();
     
-    // 初始加载热门内容
-    if (localStorage.getItem('doubanEnabled') === 'true') {
-        renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
-    }
+    // 初始根据配置更新显示状态并按需加载内容（统一在 updateDoubanVisibility 中按需加载，避免重复发起请求）
+    updateDoubanVisibility();
+
+    // 滚动到页面顶部
+    window.scrollTo(0, 0);
 }
 
 // 根据设置更新豆瓣区域的显示状态
@@ -117,15 +124,16 @@ function updateDoubanVisibility() {
     const doubanArea = document.getElementById('doubanArea');
     if (!doubanArea) return;
     
-    const isEnabled = localStorage.getItem('doubanEnabled') === 'true';
+    const isEnabled = localStorage.getItem('doubanEnabled') !== 'false';
     const isSearching = document.getElementById('resultsArea') && 
         !document.getElementById('resultsArea').classList.contains('hidden');
     
     // 只有在启用且没有搜索结果显示时才显示豆瓣区域
     if (isEnabled && !isSearching) {
         doubanArea.classList.remove('hidden');
-        // 如果豆瓣结果为空，重新加载
-        if (document.getElementById('douban-results').children.length === 0) {
+        // 如果豆瓣结果为空且当前未在加载中，发起初始加载
+        const resultsContainer = document.getElementById('douban-results');
+        if (resultsContainer && resultsContainer.children.length === 0 && !isDoubanLoading) {
             renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
         }
     } else {
@@ -411,8 +419,28 @@ function renderRecommend(tag, pageLimit, pageStart) {
     const container = document.getElementById("douban-results");
     if (!container) return;
 
+    // 中止上一个未完成的网络请求（避免竞态覆盖）
+    if (currentDoubanAbortController) {
+        try {
+            currentDoubanAbortController.abort();
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    const abortController = new AbortController();
+    currentDoubanAbortController = abortController;
+    const thisRequestId = ++currentDoubanRequestId;
+    isDoubanLoading = true;
+
+    // 清理可能遗留的旧 loading 元素，避免重复叠放
+    const oldLoading = container.querySelector('.douban-loading-overlay');
+    if (oldLoading) {
+        oldLoading.remove();
+    }
+
     const loadingOverlayHTML = `
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
+        <div class="douban-loading-overlay absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-10">
             <div class="flex items-center justify-center">
                 <div class="w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin inline-block"></div>
                 <span class="text-pink-500 ml-4">加载中...</span>
@@ -426,11 +454,19 @@ function renderRecommend(tag, pageLimit, pageStart) {
     const target = `https://movie.douban.com/j/search_subjects?type=${doubanMovieTvCurrentSwitch}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
     
     // 使用通用请求函数
-    fetchDoubanData(target)
+    fetchDoubanData(target, abortController.signal)
         .then(async data => {
+            // 如果不是最新的请求，丢弃结果，防止二次刷新覆盖
+            if (thisRequestId !== currentDoubanRequestId) {
+                return;
+            }
             await renderDoubanCards(data, container);
         })
         .catch(error => {
+            // 主动取消或已不是最新请求，无需处理
+            if (error.name === 'AbortError' || thisRequestId !== currentDoubanRequestId) {
+                return;
+            }
             console.error("获取豆瓣数据失败：", error);
             container.innerHTML = `
                 <div class="col-span-full text-center py-8">
@@ -438,14 +474,31 @@ function renderRecommend(tag, pageLimit, pageStart) {
                     <div class="text-gray-500 text-sm mt-2">提示：使用VPN可能有助于解决此问题</div>
                 </div>
             `;
+        })
+        .finally(() => {
+            if (thisRequestId === currentDoubanRequestId) {
+                isDoubanLoading = false;
+                const loadingOverlay = container.querySelector('.douban-loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.remove();
+                }
+            }
         });
 }
 
-async function fetchDoubanData(url) {
+async function fetchDoubanData(url, externalSignal) {
     // 添加超时控制
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
     
+    if (externalSignal) {
+        if (externalSignal.aborted) {
+            controller.abort();
+        } else {
+            externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+        }
+    }
+
     // 设置请求选项，包括信号和头部
     const fetchOptions = {
         signal: controller.signal,
@@ -472,13 +525,19 @@ async function fetchDoubanData(url) {
         
         return await response.json();
     } catch (err) {
+        if (err.name === 'AbortError' || (externalSignal && externalSignal.aborted)) {
+            throw err;
+        }
         console.error("豆瓣 API 请求失败（直接代理）：", err);
         
         // 失败后尝试备用方法：作为备选
         const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
         
         try {
-            const fallbackResponse = await fetch(fallbackUrl);
+            const fallbackResponse = await fetch(fallbackUrl, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
             
             if (!fallbackResponse.ok) {
                 throw new Error(`备用API请求失败! 状态: ${fallbackResponse.status}`);

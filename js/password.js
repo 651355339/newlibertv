@@ -175,9 +175,11 @@ function hidePasswordModal() {
         passwordModal.style.display = 'none';
 
         // 如果启用豆瓣区域则显示豆瓣区域
-        if (localStorage.getItem('doubanEnabled') === 'true') {
-            document.getElementById('doubanArea').classList.remove('hidden');
-            initDouban();
+        if (typeof updateDoubanVisibility === 'function') {
+            updateDoubanVisibility();
+        } else if (localStorage.getItem('doubanEnabled') !== 'false') {
+            const doubanArea = document.getElementById('doubanArea');
+            if (doubanArea) doubanArea.classList.remove('hidden');
         }
     }
 }
