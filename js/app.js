@@ -682,6 +682,7 @@ async function search() {
         if (doubanArea) {
             doubanArea.classList.add('hidden');
         }
+        document.querySelector('.cinema-discovery-panel')?.classList.add('hidden');
 
         const resultsDiv = document.getElementById('results');
 

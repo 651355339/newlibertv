@@ -16,7 +16,7 @@
     
     <script src="libs/tailwindcss.min.js"></script>
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/index.css?v=orbit-tags-v14">
+    <link rel="stylesheet" href="css/index.css?v=slow-orbit-hud-v16">
 </head>
 <body class="page-bg text-white">
     <!-- 将历史记录按钮移到左上角，并缩小尺寸 -->
@@ -123,7 +123,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- 内容过滤设置区域 -->
             <div class="p-3 bg-[#151515] rounded-lg shadow-inner">
                 <label class="block text-sm font-medium text-gray-400 mb-3 border-b border-[#333] pb-1">功能开关</label>
@@ -236,19 +236,10 @@
                     <div id="recentSearches" class="mt-4 flex flex-wrap gap-2" aria-label="最近搜索记录">
                         <!-- 这里会动态插入最近的搜索记录 -->
                     </div>
-                </div>
-            </div>
-            
-            <!-- 豆瓣热门推荐区域: 默认隐藏，现在位于搜索区域下方，调整宽度 -->
-            <div id="doubanArea" class="w-full my-8 hidden">
-                <div class="mx-auto max-w-screen-xl px-2">
-                    <!-- 改进标题和标签区域布局 -->
-                    <div class="mb-4 cinema-discovery-panel">
-                        <!-- 标题和刷新按钮一行 -->
-                        <div class="flex items-center justify-between mb-4 cinema-toolbar">
+                    <div class="cinema-discovery-panel hidden">
+                        <div class="flex items-center justify-between cinema-toolbar">
                             <div class="flex items-center">
                                 <h2 class="text-xl font-bold text-white mr-4 cinema-title">热门片单</h2>
-                                <!-- 添加电影/电视剧切换开关 -->
                                 <div class="flex items-center bg-[#222] rounded-full p-1 cinema-type-toggle">
                                     <button id="douban-movie-toggle" class="px-3 py-1 text-sm rounded-full bg-pink-600 text-white">电影</button>
                                     <button id="douban-tv-toggle" class="px-3 py-1 text-sm rounded-full text-gray-300 hover:text-white">电视剧</button>
@@ -261,19 +252,23 @@
                                 </svg>
                             </button>
                         </div>
-                        <!-- 分类标签独立成行，添加滚动支持以适应移动设备 -->
                         <div class="overflow-x-auto pb-2 cinema-tags-viewport">
                             <div id="douban-tags" class="flex space-x-2 min-w-max cinema-tags"></div>
                         </div>
                     </div>
-                    
+                </div>
+            </div>
+
+            <!-- 豆瓣热门推荐区域: 默认隐藏，现在位于搜索区域下方，调整宽度 -->
+            <div id="doubanArea" class="w-full hidden">
+                <div class="mx-auto max-w-screen-xl px-2">
                     <!-- 3D 选片区 -->
                     <div class="film-picker" aria-label="3D 影视选片">
                         <div id="filmSpaceWords" class="film-space-words" aria-hidden="true"></div>
                         <button class="film-picker-arrow film-picker-prev" type="button" onclick="navigateDoubanCarousel(-1)" aria-label="上一部影片">‹</button>
                         <div id="douban-results" class="film-picker-stage" aria-live="polite"></div>
                         <button class="film-picker-arrow film-picker-next" type="button" onclick="navigateDoubanCarousel(1)" aria-label="下一部影片">›</button>
-                        <div class="film-picker-hint"><span></span> 滚轮连续旋转 · 拖动控制环绕 <span></span></div>
+                        <div class="film-picker-hint"><span></span> 缓慢自动环绕 · 滚轮 / 拖动控制 <span></span></div>
                     </div>
                 </div>
             </div>
@@ -424,7 +419,7 @@
     <script src="js/customer_site.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/douban.js?v=orbit-tags-v14"></script>
+    <script src="js/douban.js?v=slow-orbit-hud-v16"></script>
     <script src="js/password.js"></script>
     <script src="js/search.js"></script>
     <script src="js/app.js"></script>

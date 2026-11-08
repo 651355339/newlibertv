@@ -53,6 +53,8 @@ let doubanCurrentTag = '热门';
 let doubanPageStart = 0;
 const doubanPageSize = 16; // 一次显示的项目数量
 let doubanOrbitPhase = 0;
+let doubanOrbitAnimationFrame = 0;
+let doubanOrbitLastFrameTime = 0;
 
 function updateDoubanCarousel() {
     const container = document.getElementById('douban-results');
@@ -79,6 +81,24 @@ function updateDoubanCarousel() {
         card.dataset.orbitFacing = facing.toFixed(3);
         card.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${z}px) scale(${scale})`;
     });
+}
+
+function startDoubanOrbit() {
+    if (doubanOrbitAnimationFrame || !document.querySelector('#douban-results .film-picker-card')) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const animate = timestamp => {
+        if (!isDoubanCinemaVisible()) {
+            doubanOrbitAnimationFrame = 0;
+            doubanOrbitLastFrameTime = 0;
+            return;
+        }
+        const elapsed = doubanOrbitLastFrameTime ? Math.min(timestamp - doubanOrbitLastFrameTime, 50) : 0;
+        doubanOrbitLastFrameTime = timestamp;
+        doubanOrbitPhase = (doubanOrbitPhase + elapsed / 80000) % 1;
+        updateDoubanCarousel();
+        doubanOrbitAnimationFrame = requestAnimationFrame(animate);
+    };
+    doubanOrbitAnimationFrame = requestAnimationFrame(animate);
 }
 
 function navigateDoubanCarousel(direction) {
@@ -120,6 +140,9 @@ function activateDoubanCard(index, title) {
 
 let doubanCarouselSuppressClickUntil = 0;
 let doubanPointerLastX = null;
+let doubanPointerStartX = null;
+let doubanPointerStartY = null;
+let doubanPointerType = '';
 let doubanPointerDragged = false;
 
 function isDoubanCinemaVisible() {
@@ -134,22 +157,36 @@ window.addEventListener('wheel', event => {
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
     if (!delta) return;
     event.preventDefault();
-    doubanOrbitPhase = ((doubanOrbitPhase + delta * .00022) % 1 + 1) % 1;
+    doubanOrbitPhase = ((doubanOrbitPhase - delta * .00022) % 1 + 1) % 1;
     updateDoubanCarousel();
 }, { passive: false });
 
 window.addEventListener('pointerdown', event => {
     if (!isDoubanCinemaVisible() || event.button !== 0) return;
-    if (event.target.closest('#settingsPanel, #historyPanel, #modal, #passwordModal, #disclaimerModal, #searchInput, #clearSearchInput, #searchArea button, #resultsArea, a')) return;
+    if (event.target.closest('#settingsPanel, #historyPanel, #modal, #passwordModal, #disclaimerModal, .home-search-panel, .cinema-discovery-panel, #resultsArea, a')) return;
     doubanPointerLastX = event.clientX;
+    doubanPointerStartX = event.clientX;
+    doubanPointerStartY = event.clientY;
+    doubanPointerType = event.pointerType;
     doubanPointerDragged = false;
 });
 
 window.addEventListener('pointermove', event => {
     if (doubanPointerLastX === null) return;
+    const totalX = event.clientX - doubanPointerStartX;
+    const totalY = event.clientY - doubanPointerStartY;
+    if (doubanPointerType !== 'mouse') {
+        if (Math.abs(totalX) < 12) return;
+        if (Math.abs(totalX) < Math.abs(totalY) * 1.2) {
+            if (Math.abs(totalY) > 12) doubanPointerLastX = null;
+            return;
+        }
+    } else if (Math.abs(totalX) < 3 || Math.abs(totalX) < Math.abs(totalY) * .75) {
+        return;
+    }
     const delta = event.clientX - doubanPointerLastX;
     if (Math.abs(delta) > 1) {
-        doubanOrbitPhase = ((doubanOrbitPhase - delta * .00026) % 1 + 1) % 1;
+        doubanOrbitPhase = ((doubanOrbitPhase + delta * .00026) % 1 + 1) % 1;
         doubanPointerLastX = event.clientX;
         doubanPointerDragged = true;
         updateDoubanCarousel();
@@ -159,8 +196,16 @@ window.addEventListener('pointermove', event => {
 window.addEventListener('pointerup', () => {
     if (doubanPointerDragged) doubanCarouselSuppressClickUntil = Date.now() + 250;
     doubanPointerLastX = null;
+    doubanPointerStartX = null;
+    doubanPointerStartY = null;
+    doubanPointerType = '';
 });
-window.addEventListener('pointercancel', () => { doubanPointerLastX = null; });
+window.addEventListener('pointercancel', () => {
+    doubanPointerLastX = null;
+    doubanPointerStartX = null;
+    doubanPointerStartY = null;
+    doubanPointerType = '';
+});
 
 window.addEventListener('click', event => {
     if (!isDoubanCinemaVisible() || event.target.closest('.film-picker-card, .home-search-panel, #searchArea button, #searchArea input, #recentSearches, header a, button, input, a, #settingsPanel, #historyPanel, footer')) return;
@@ -259,6 +304,8 @@ function updateDoubanVisibility() {
     const isEnabled = localStorage.getItem('doubanEnabled') !== 'false';
     const isSearching = document.getElementById('resultsArea') && 
         !document.getElementById('resultsArea').classList.contains('hidden');
+    const discoveryPanel = document.querySelector('.cinema-discovery-panel');
+    if (discoveryPanel) discoveryPanel.classList.toggle('hidden', !isEnabled || !!isSearching);
     
     // 只有在启用且没有搜索结果显示时才显示豆瓣区域
     if (isEnabled && !isSearching) {
@@ -267,6 +314,8 @@ function updateDoubanVisibility() {
         const resultsContainer = document.getElementById('douban-results');
         if (resultsContainer && resultsContainer.children.length === 0 && !isDoubanLoading) {
             renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
+        } else if (resultsContainer?.querySelector('.film-picker-card')) {
+            startDoubanOrbit();
         }
     } else {
         doubanArea.classList.add('hidden');
@@ -771,6 +820,7 @@ async function renderDoubanCards(data, container) {
     renderFilmSpaceWords(data.subjects || []);
     doubanOrbitPhase = 0;
     updateDoubanCarousel();
+    startDoubanOrbit();
 }
 
 // 重置到首页

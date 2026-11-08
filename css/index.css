@@ -229,9 +229,9 @@
     z-index: 25;
     top: 12px;
     left: 50%;
-    width: min(620px, calc(100vw - 440px));
+    width: min(920px, calc(100vw - 440px));
     max-width: none;
-    padding: 10px 12px;
+    padding: 10px 14px;
     transform: translateX(-50%);
     border: 1px solid rgba(185, 210, 255, .13);
     border-radius: 17px;
@@ -244,20 +244,17 @@
 .home-search-panel #recentSearches { max-height: 28px; overflow: hidden; margin-top: 6px; }
 
 .cinema-discovery-panel {
-    position: fixed;
-    z-index: 22;
-    top: 120px;
-    left: 50%;
-    width: min(1080px, calc(100vw - 48px));
-    margin: 0;
-    padding: 10px 15px 8px;
-    transform: translateX(-50%);
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    margin: 7px 0 0;
+    padding: 8px 1px 0;
     overflow: hidden;
-    border: 1px solid rgba(125,211,252,.2);
-    border-radius: 17px;
-    background: linear-gradient(110deg, rgba(5,12,29,.86), rgba(20,18,45,.76) 48%, rgba(7,20,37,.84));
-    box-shadow: 0 20px 54px rgba(0,0,0,.36), 0 0 28px rgba(56,189,248,.08), inset 0 1px rgba(255,255,255,.12);
-    backdrop-filter: blur(18px) saturate(1.45);
+    border: 0;
+    border-top: 1px solid rgba(125,211,252,.2);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 .cinema-discovery-panel::before {
     content: "";
@@ -364,7 +361,7 @@
     perspective: 1050px;
     transform-style: preserve-3d;
     cursor: grab;
-    touch-action: none;
+    touch-action: pan-y;
     user-select: none;
     pointer-events: none;
 }
@@ -540,12 +537,12 @@
     .home-brand-header > div { justify-content: center; }
     .home-brand-header svg { width: 20px; height: 20px; }
     .home-brand-header h1 { font-size: 1.05rem; }
-    .home-search-panel { top: 52px; width: calc(100vw - 24px); padding: 7px; border-radius: 13px; }
+    .home-search-panel { top: 52px; width: calc(100vw - 24px); padding: 7px 9px; border-radius: 13px; }
     .home-search-panel > div:first-child { height: 44px; }
     .home-search-panel #searchInput { padding-left: 10px; padding-right: 10px; font-size: .9rem; }
     .home-search-panel #recentSearches { margin-top: 4px; }
-    .cinema-discovery-panel { top: 148px; width: calc(100vw - 20px); padding: 9px 10px 7px; border-radius: 13px; }
-    .cinema-toolbar { margin-bottom: 6px; }
+    .cinema-discovery-panel { width: 100%; margin-top: 4px; padding-top: 6px; }
+    .cinema-toolbar { margin-bottom: 4px; }
     .cinema-title { gap: 6px; margin-right: 8px; font-size: .62rem; letter-spacing: .08em; }
     .cinema-type-toggle button { min-width: 44px; padding: 5px 9px; font-size: .66rem; }
     .cinema-refresh { gap: 4px; padding: 5px 8px; font-size: .64rem; }
@@ -563,6 +560,11 @@
 
 @media (max-width: 640px) {
     .film-picker-card { width: min(22vw, 82px); }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .film-space-words { display: none; }
+    .film-picker-stage { touch-action: pan-y; }
 }
 
 @media (prefers-reduced-motion: reduce) {
