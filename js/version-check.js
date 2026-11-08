@@ -30,52 +30,46 @@ async function fetchVersion(url, errorMessage, options = {}) {
 async function checkForUpdates() {
     try {
         // 获取当前版本
-        let currentVersion = '202603300118';
+        const currentVersion = await fetchVersion('/VERSION.txt', '获取当前版本失败', {
+            cache: 'no-store'
+        });
+        
+        // 获取最新版本
+        let latestVersion;
+        const VERSION_URL = {
+            PROXY: 'https://ghfast.top/raw.githubusercontent.com/LibreSpark/LibreTV/main/VERSION.txt',
+            DIRECT: 'https://raw.githubusercontent.com/LibreSpark/LibreTV/main/VERSION.txt'
+        };
+        const FETCH_TIMEOUT = 1500;
+        
         try {
-            const fetchedCurrent = await fetchVersion('/VERSION.txt', '获取当前版本失败', {
-                cache: 'no-store'
-            });
-            if (fetchedCurrent && fetchedCurrent.trim()) {
-                currentVersion = fetchedCurrent.trim();
-            }
-        } catch (e) {
-            console.warn('获取本地版本失败，使用内置版本:', e);
-        }
-        
-        // 获取最新版本（多通道兜底：jsDelivr 全球加速 -> 镜像代理 -> GitHub 直连）
-        let latestVersion = null;
-        const VERSION_URLS = [
-            'https://cdn.jsdelivr.net/gh/651355339/newlibertv@main/VERSION.txt',
-            'https://ghfast.top/raw.githubusercontent.com/651355339/newlibertv/main/VERSION.txt',
-            'https://raw.githubusercontent.com/651355339/newlibertv/main/VERSION.txt'
-        ];
-        
-        for (const url of VERSION_URLS) {
+            // 尝试使用代理URL获取最新版本
+            const proxyPromise = fetchVersion(VERSION_URL.PROXY, '代理请求失败');
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('代理请求超时')), FETCH_TIMEOUT)
+            );
+            
+            latestVersion = await Promise.race([proxyPromise, timeoutPromise]);
+            console.log('通过代理服务器获取版本成功');
+        } catch (error) {
+            console.log('代理请求失败，尝试直接请求:', error.message);
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-                const res = await fetch(url, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (res.ok) {
-                    const text = await res.text();
-                    if (text && text.trim().length > 0) {
-                        latestVersion = text.trim();
-                        break;
-                    }
-                }
-            } catch (err) {
-                // 自动尝试下一个版本检查源
+                // 代理失败后尝试直接获取
+                latestVersion = await fetchVersion(VERSION_URL.DIRECT, '获取最新版本失败');
+                console.log('直接请求获取版本成功');
+            } catch (directError) {
+                console.error('所有版本检查请求均失败:', directError);
+                throw new Error('无法获取最新版本信息');
             }
         }
         
-        // 清理版本字符串
-        const cleanCurrentVersion = currentVersion.trim();
-        // 如果远端源均不可达，则优雅降级为显示当前版本，不报错阻断
-        const cleanLatestVersion = latestVersion ? latestVersion.trim() : cleanCurrentVersion;
+        console.log('当前版本:', currentVersion);
+        console.log('最新版本:', latestVersion);
         
-        console.log('当前版本:', cleanCurrentVersion);
-        console.log('最新版本:', cleanLatestVersion);
-
+        // 清理版本字符串（移除可能的空格或换行符）
+        const cleanCurrentVersion = currentVersion.trim();
+        const cleanLatestVersion = latestVersion.trim();
+        
         // 返回版本信息
         return {
             current: cleanCurrentVersion,
@@ -154,7 +148,7 @@ function addVersionInfoToFooter() {
                 const updateBtn = versionElement.querySelector('span');
                 if (updateBtn) {
                     updateBtn.addEventListener('click', () => {
-                        window.open('https://github.com/651355339/newlibertv', '_blank');
+                        window.open('https://github.com/LibreSpark/LibreTV', '_blank');
                     });
                 }
             }, 100);

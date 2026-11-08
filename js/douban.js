@@ -52,187 +52,105 @@ let doubanMovieTvCurrentSwitch = 'movie';
 let doubanCurrentTag = '热门';
 let doubanPageStart = 0;
 const doubanPageSize = 16; // 一次显示的项目数量
-let doubanOrbitPhase = 0;
-let doubanOrbitAnimationFrame = 0;
-let doubanOrbitLastFrameTime = 0;
-
-function updateDoubanCarousel() {
-    const container = document.getElementById('douban-results');
-    if (!container) return;
-    const cards = [...container.querySelectorAll('.film-picker-card')];
-    if (!cards.length) return;
-    const count = cards.length;
-    const radiusX = Math.min(window.innerWidth * .36, 600);
-    const radiusZ = Math.min(window.innerWidth * .24, 300);
-    cards.forEach((card, index) => {
-        const angle = ((index / count + doubanOrbitPhase) % 1) * Math.PI * 2;
-        const facing = Math.cos(angle);
-        const x = Math.sin(angle) * radiusX;
-        const y = Math.sin(angle * 2) * 8;
-        const z = facing * radiusZ;
-        const scale = .64 + Math.max(0, facing) * .27;
-        const isActive = facing > Math.cos(Math.PI / count);
-        card.classList.toggle('is-active', isActive);
-        card.classList.toggle('is-rear', facing < -.15);
-        card.setAttribute('aria-current', isActive ? 'true' : 'false');
-        card.style.zIndex = String(Math.round((facing + 1) * 50));
-        card.style.opacity = String(facing < -.15 ? .18 : .38 + Math.max(0, facing) * .48);
-        card.style.pointerEvents = facing < .05 ? 'none' : 'auto';
-        card.dataset.orbitFacing = facing.toFixed(3);
-        card.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${z}px) scale(${scale})`;
-    });
-}
-
-function startDoubanOrbit() {
-    if (doubanOrbitAnimationFrame || !document.querySelector('#douban-results .film-picker-card')) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animate = timestamp => {
-        if (!isDoubanCinemaVisible()) {
-            doubanOrbitAnimationFrame = 0;
-            doubanOrbitLastFrameTime = 0;
-            return;
-        }
-        const elapsed = doubanOrbitLastFrameTime ? Math.min(timestamp - doubanOrbitLastFrameTime, 50) : 0;
-        doubanOrbitLastFrameTime = timestamp;
-        doubanOrbitPhase = (doubanOrbitPhase + elapsed / 80000) % 1;
-        updateDoubanCarousel();
-        doubanOrbitAnimationFrame = requestAnimationFrame(animate);
-    };
-    doubanOrbitAnimationFrame = requestAnimationFrame(animate);
-}
-
-function navigateDoubanCarousel(direction) {
-    const cards = document.querySelectorAll('#douban-results .film-picker-card');
-    if (!cards.length) return;
-    const count = cards.length;
-    doubanOrbitPhase = (doubanOrbitPhase + direction / count + 1) % 1;
-    updateDoubanCarousel();
-}
-
-function renderFilmSpaceWords(subjects) {
-    const layer = document.getElementById('filmSpaceWords');
-    if (!layer) return;
-    layer.replaceChildren();
-    subjects.slice(0, 8).forEach((item, index) => {
-        if (!item?.title) return;
-        const word = document.createElement('span');
-        const angle = index * Math.PI * (3 - Math.sqrt(5));
-        const endX = Math.cos(angle) * window.innerWidth * .43;
-        const endY = Math.sin(angle) * window.innerHeight * .31;
-        word.className = 'film-space-word';
-        word.textContent = item.title;
-        word.style.setProperty('--word-start-x', `${endX * .08}px`);
-        word.style.setProperty('--word-start-y', `${endY * .08}px`);
-        word.style.setProperty('--word-mid-x', `${endX * .55}px`);
-        word.style.setProperty('--word-mid-y', `${endY * .55}px`);
-        word.style.setProperty('--word-end-x', `${endX}px`);
-        word.style.setProperty('--word-end-y', `${endY}px`);
-        word.style.animationDelay = `${-index * 2.75}s`;
-        word.style.animationDuration = `${21 + index % 4 * 1.5}s`;
-        layer.appendChild(word);
-    });
-}
-
-function activateDoubanCard(index, title) {
-    if (Date.now() < doubanCarouselSuppressClickUntil) return;
-    fillAndSearchWithDouban(title);
-}
-
-let doubanCarouselSuppressClickUntil = 0;
-let doubanPointerLastX = null;
-let doubanPointerStartX = null;
-let doubanPointerStartY = null;
-let doubanPointerType = '';
-let doubanPointerDragged = false;
-
-function isDoubanCinemaVisible() {
-    const area = document.getElementById('doubanArea');
-    const results = document.getElementById('resultsArea');
-    return !!area && !area.classList.contains('hidden') && (!results || results.classList.contains('hidden'));
-}
-
-window.addEventListener('wheel', event => {
-    if (!isDoubanCinemaVisible()) return;
-    if (event.target.closest('#settingsPanel, #historyPanel, #modal, #passwordModal, #disclaimerModal, #douban-tags, #douban-movie-toggle, #douban-tv-toggle, #douban-refresh, footer, input, textarea, select')) return;
-    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-    if (!delta) return;
-    event.preventDefault();
-    doubanOrbitPhase = ((doubanOrbitPhase - delta * .00022) % 1 + 1) % 1;
-    updateDoubanCarousel();
-}, { passive: false });
-
-window.addEventListener('pointerdown', event => {
-    if (!isDoubanCinemaVisible() || event.button !== 0) return;
-    if (event.target.closest('#settingsPanel, #historyPanel, #modal, #passwordModal, #disclaimerModal, .home-search-panel, .cinema-discovery-panel, #resultsArea, a')) return;
-    doubanPointerLastX = event.clientX;
-    doubanPointerStartX = event.clientX;
-    doubanPointerStartY = event.clientY;
-    doubanPointerType = event.pointerType;
-    doubanPointerDragged = false;
-});
-
-window.addEventListener('pointermove', event => {
-    if (doubanPointerLastX === null) return;
-    const totalX = event.clientX - doubanPointerStartX;
-    const totalY = event.clientY - doubanPointerStartY;
-    if (doubanPointerType !== 'mouse') {
-        if (Math.abs(totalX) < 12) return;
-        if (Math.abs(totalX) < Math.abs(totalY) * 1.2) {
-            if (Math.abs(totalY) > 12) doubanPointerLastX = null;
-            return;
-        }
-    } else if (Math.abs(totalX) < 3 || Math.abs(totalX) < Math.abs(totalY) * .75) {
-        return;
-    }
-    const delta = event.clientX - doubanPointerLastX;
-    if (Math.abs(delta) > 1) {
-        doubanOrbitPhase = ((doubanOrbitPhase + delta * .00026) % 1 + 1) % 1;
-        doubanPointerLastX = event.clientX;
-        doubanPointerDragged = true;
-        updateDoubanCarousel();
-    }
-});
-
-window.addEventListener('pointerup', () => {
-    if (doubanPointerDragged) doubanCarouselSuppressClickUntil = Date.now() + 250;
-    doubanPointerLastX = null;
-    doubanPointerStartX = null;
-    doubanPointerStartY = null;
-    doubanPointerType = '';
-});
-window.addEventListener('pointercancel', () => {
-    doubanPointerLastX = null;
-    doubanPointerStartX = null;
-    doubanPointerStartY = null;
-    doubanPointerType = '';
-});
-
-window.addEventListener('click', event => {
-    if (!isDoubanCinemaVisible() || event.target.closest('.film-picker-card, .home-search-panel, #searchArea button, #searchArea input, #recentSearches, header a, button, input, a, #settingsPanel, #historyPanel, footer')) return;
-    const cards = [...document.querySelectorAll('#douban-results .film-picker-card')];
-    const hit = cards
-        .filter(card => Number(card.dataset.orbitFacing) > .05)
-        .filter(card => {
-            const rect = card.getBoundingClientRect();
-            return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
-        })
-        .sort((a, b) => Number(b.dataset.orbitFacing) - Number(a.dataset.orbitFacing))[0];
-    if (!hit || Date.now() < doubanCarouselSuppressClickUntil) return;
-    const titleButton = hit.querySelector('.film-card-title button');
-    if (titleButton) fillAndSearchWithDouban(titleButton.textContent.trim());
-});
-
-document.addEventListener('keydown', event => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-    if (!isDoubanCinemaVisible()) return;
-    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-    navigateDoubanCarousel(event.key === 'ArrowLeft' ? -1 : 1);
-});
-window.addEventListener('resize', updateDoubanCarousel);
 let isDoubanInitialized = false;
 let isDoubanLoading = false;
 let currentDoubanRequestId = 0;
 let currentDoubanAbortController = null;
+let doubanTrackUpdateFrame = 0;
+let doubanTrackDrag = null;
+let doubanTrackSuppressClickUntil = 0;
+
+function renderDoubanSpaceWords(subjects) {
+    const layer = document.getElementById('douban-space-words');
+    if (!layer) return;
+    layer.replaceChildren();
+
+    subjects.slice(0, 10).forEach((item, index) => {
+        if (!item?.title) return;
+        const word = document.createElement('span');
+        const angle = index * Math.PI * (3 - Math.sqrt(5));
+        const endX = Math.cos(angle) * Math.min(window.innerWidth * .42, 620);
+        const endY = Math.sin(angle) * Math.min(window.innerHeight * .2, 190);
+        word.className = 'douban-space-word';
+        word.textContent = item.title;
+        word.style.setProperty('--start-x', `${endX * .08}px`);
+        word.style.setProperty('--start-y', `${endY * .08}px`);
+        word.style.setProperty('--mid-x', `${endX * .52}px`);
+        word.style.setProperty('--mid-y', `${endY * .52}px`);
+        word.style.setProperty('--end-x', `${endX}px`);
+        word.style.setProperty('--end-y', `${endY}px`);
+        word.style.animationDelay = `${-index * 2.6}s`;
+        word.style.animationDuration = `${24 + (index % 4) * 2}s`;
+        layer.appendChild(word);
+    });
+}
+
+function updateDoubanTrack3d() {
+    const track = document.getElementById('douban-results');
+    if (!track) return;
+    const cards = [...track.querySelectorAll('.douban-3d-card')];
+    if (!cards.length) return;
+
+    const center = track.scrollLeft + track.clientWidth / 2;
+    cards.forEach(card => {
+        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+        const distance = (cardCenter - center) / Math.max(card.offsetWidth, 1);
+        const depth = Math.min(Math.abs(distance), 2.4);
+        const rotateY = Math.max(-30, Math.min(30, -distance * 16));
+        const scale = Math.max(.74, 1.06 - depth * .12);
+        const translateZ = 54 - depth * 38;
+        const opacity = Math.max(.46, 1 - Math.max(0, depth - .6) * .28);
+        card.style.zIndex = String(100 - Math.round(depth * 10));
+        card.style.opacity = String(opacity);
+        card.style.transform = `translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`;
+    });
+}
+
+function scheduleDoubanTrackUpdate() {
+    if (doubanTrackUpdateFrame) return;
+    doubanTrackUpdateFrame = requestAnimationFrame(() => {
+        doubanTrackUpdateFrame = 0;
+        updateDoubanTrack3d();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const track = document.getElementById('douban-results');
+    if (!track) return;
+    track.addEventListener('scroll', scheduleDoubanTrackUpdate, { passive: true });
+    track.addEventListener('wheel', event => {
+        const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+        if (!delta || event.ctrlKey) return;
+        event.preventDefault();
+        track.scrollLeft += delta;
+    }, { passive: false });
+    track.addEventListener('pointerdown', event => {
+        if (event.pointerType !== 'mouse' || event.button !== 0 || event.target.closest('a')) return;
+        doubanTrackDrag = { startX: event.clientX, scrollLeft: track.scrollLeft, moved: false };
+        track.classList.add('is-dragging');
+    });
+    window.addEventListener('pointermove', event => {
+        if (!doubanTrackDrag) return;
+        const delta = event.clientX - doubanTrackDrag.startX;
+        if (Math.abs(delta) > 4) doubanTrackDrag.moved = true;
+        if (doubanTrackDrag.moved) track.scrollLeft = doubanTrackDrag.scrollLeft - delta;
+    });
+    const endDrag = () => {
+        if (!doubanTrackDrag) return;
+        if (doubanTrackDrag.moved) doubanTrackSuppressClickUntil = Date.now() + 250;
+        doubanTrackDrag = null;
+        track.classList.remove('is-dragging');
+    };
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    track.addEventListener('click', event => {
+        if (Date.now() < doubanTrackSuppressClickUntil) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, true);
+    window.addEventListener('resize', scheduleDoubanTrackUpdate);
+});
 
 // 初始化豆瓣功能
 function initDouban() {
@@ -304,8 +222,6 @@ function updateDoubanVisibility() {
     const isEnabled = localStorage.getItem('doubanEnabled') !== 'false';
     const isSearching = document.getElementById('resultsArea') && 
         !document.getElementById('resultsArea').classList.contains('hidden');
-    const discoveryPanel = document.querySelector('.cinema-discovery-panel');
-    if (discoveryPanel) discoveryPanel.classList.toggle('hidden', !isEnabled || !!isSearching);
     
     // 只有在启用且没有搜索结果显示时才显示豆瓣区域
     if (isEnabled && !isSearching) {
@@ -314,8 +230,6 @@ function updateDoubanVisibility() {
         const resultsContainer = document.getElementById('douban-results');
         if (resultsContainer && resultsContainer.children.length === 0 && !isDoubanLoading) {
             renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
-        } else if (resultsContainer?.querySelector('.film-picker-card')) {
-            startDoubanOrbit();
         }
     } else {
         doubanArea.classList.add('hidden');
@@ -538,7 +452,7 @@ function renderDoubanTags(tags) {
             btnClass += 'bg-[#1a1a1a] text-gray-300 hover:bg-pink-700 hover:text-white border-[#333] hover:border-white';
         }
         
-        btn.className = `${btnClass} cinema-tag`;
+        btn.className = btnClass;
         btn.textContent = tag;
         
         btn.onclick = function() {
@@ -765,10 +679,9 @@ async function renderDoubanCards(data, container) {
         fragment.appendChild(emptyEl);
     } else {
         // 循环创建每个影视卡片
-        const cards = await Promise.all(data.subjects.map(async (item, index) => {
+        const cards = await Promise.all(data.subjects.map(async (item) => {
             const card = document.createElement("div");
-            card.className = "film-picker-card";
-            card.setAttribute('role', 'group');
+            card.className = "douban-3d-card bg-[#111] rounded-lg overflow-hidden flex flex-col shadow-md";
             
             // 生成卡片内容，确保安全显示（防止XSS）
             const safeTitle = item.title
@@ -785,7 +698,7 @@ async function renderDoubanCards(data, container) {
             
             // 为不同设备优化卡片布局：使用代理获取带豆瓣Referer的图片，失败时优雅降级为本地占位图，不触发重复请求
             card.innerHTML = `
-                <div class="film-poster" onclick="activateDoubanCard(${index}, '${safeTitle}')" role="button" tabindex="0" aria-label="切换或搜索：${safeTitle}">
+                <div class="relative w-full aspect-[2/3] overflow-hidden cursor-pointer" onclick="fillAndSearchWithDouban('${safeTitle}')">
                     <img src="${proxiedCoverUrl || originalCoverUrl || 'image/nomedia.png'}" alt="${safeTitle}" 
                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
                         onerror="this.onerror=null; this.src='image/nomedia.png'; this.classList.add('object-contain');"
@@ -800,8 +713,9 @@ async function renderDoubanCards(data, container) {
                         </a>
                     </div>
                 </div>
-                <div class="film-card-title">
-                    <button onclick="fillAndSearchWithDouban('${safeTitle}')"
+                <div class="p-2 text-center bg-[#111]">
+                    <button onclick="fillAndSearchWithDouban('${safeTitle}')" 
+                            class="text-sm font-medium text-white truncate w-full hover:text-pink-400 transition"
                             title="${safeTitle}">
                         ${safeTitle}
                     </button>
@@ -817,10 +731,8 @@ async function renderDoubanCards(data, container) {
     // 清空并添加所有新元素
     container.innerHTML = "";
     container.appendChild(fragment);
-    renderFilmSpaceWords(data.subjects || []);
-    doubanOrbitPhase = 0;
-    updateDoubanCarousel();
-    startDoubanOrbit();
+    renderDoubanSpaceWords(data.subjects || []);
+    scheduleDoubanTrackUpdate();
 }
 
 // 重置到首页
