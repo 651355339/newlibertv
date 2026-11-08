@@ -167,16 +167,21 @@
     color: white;
 }
 
-/* 横向 3D 影片滚动 */
-.douban-cinema-scene { position: relative; isolation: isolate; }
-.douban-cinema-scene > *:not(.douban-space-backdrop) { position: relative; z-index: 1; }
+/* 全页面星空与飞行片名 */
+.home-page-content { position: relative; z-index: 1; }
+.footer { position: relative; z-index: 1; }
 .douban-space-backdrop {
-    position: absolute;
+    display: block;
+    position: fixed;
     z-index: 0;
-    inset: -2rem -4vw;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     pointer-events: none;
 }
+/* 横向 3D 影片滚动 */
 .douban-space-stars {
     position: absolute;
     inset: 0;
@@ -344,4 +349,193 @@
     .search-results-grid {
         grid-template-columns: repeat(4, 1fr);
     }
+}
+
+/* 科幻 HUD 搜索框与片单标签 */
+.search-hud-bar {
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+    height: 64px;
+    gap: 5px;
+    padding: 5px;
+    border: 1px solid rgba(125,211,252,.34);
+    border-radius: 17px;
+    background: linear-gradient(115deg, rgba(10,18,34,.96), rgba(15,22,42,.9) 55%, rgba(24,18,46,.94));
+    box-shadow: 0 0 0 1px rgba(34,211,238,.07), 0 12px 36px rgba(0,0,0,.4), inset 0 1px rgba(255,255,255,.08);
+    backdrop-filter: blur(16px);
+}
+.search-hud-bar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -35%;
+    width: 24%;
+    background: linear-gradient(90deg, transparent, rgba(103,232,249,.09), transparent);
+    transform: skewX(-18deg);
+    animation: search-hud-sweep 8s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes search-hud-sweep {
+    0%, 15% { left: -35%; opacity: 0; }
+    30%, 70% { opacity: 1; }
+    92%, 100% { left: 115%; opacity: 0; }
+}
+.search-hud-bar > button:first-child {
+    z-index: 1;
+    flex: 0 0 76px;
+    width: 76px;
+    border: 1px solid rgba(103,232,249,.22);
+    border-radius: 11px;
+    color: #b9f3ff;
+    background: linear-gradient(145deg, rgba(34,211,238,.14), rgba(56,65,120,.22)) !important;
+    font-size: .9rem;
+}
+.search-hud-bar > button:first-child:hover {
+    color: white;
+    border-color: rgba(103,232,249,.55);
+    background: linear-gradient(145deg, rgba(34,211,238,.25), rgba(99,102,241,.3)) !important;
+}
+.search-hud-bar #searchInput {
+    z-index: 1;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: #f0f9ff;
+    background: rgba(3,8,20,.58);
+    font-size: .98rem;
+    letter-spacing: .025em;
+}
+.search-hud-bar #searchInput:focus {
+    border-color: rgba(103,232,249,.2);
+    background: rgba(3,8,20,.78);
+    box-shadow: inset 0 0 18px rgba(34,211,238,.05);
+}
+.search-hud-bar #searchInput::placeholder { color: #8091ad; }
+.search-hud-bar #clearSearchInput {
+    z-index: 1;
+    border: 0;
+    background: rgba(3,8,20,.58);
+}
+.search-hud-bar > button:last-child {
+    z-index: 1;
+    flex: 0 0 84px;
+    width: 84px;
+    border: 1px solid rgba(165,243,252,.45);
+    border-radius: 11px;
+    color: #f0fdff;
+    background: linear-gradient(115deg, #0891b2, #4f46e5 62%, #7c3aed) !important;
+    box-shadow: 0 0 18px rgba(34,211,238,.2), inset 0 1px rgba(255,255,255,.28);
+    font-weight: 700;
+    letter-spacing: .08em;
+}
+.search-hud-bar > button:last-child:hover {
+    border-color: rgba(224,242,254,.85);
+    box-shadow: 0 0 26px rgba(56,189,248,.36), inset 0 1px rgba(255,255,255,.35);
+    filter: brightness(1.12);
+}
+
+.douban-category-title {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #e0f7ff;
+    letter-spacing: .04em;
+    text-shadow: 0 0 18px rgba(34,211,238,.26);
+}
+.douban-category-title::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: #67e8f9;
+    box-shadow: 0 0 12px #22d3ee;
+}
+.douban-category-switch {
+    gap: 3px;
+    padding: 4px;
+    border: 1px solid rgba(125,211,252,.2);
+    background: linear-gradient(145deg, rgba(7,15,31,.9), rgba(24,22,45,.88)) !important;
+    box-shadow: inset 0 1px rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.2);
+}
+.douban-category-switch button {
+    min-width: 56px;
+    border-radius: 999px;
+    color: #aebbd1;
+    transition: color .2s, background .2s, box-shadow .2s;
+}
+.douban-category-switch button:hover { color: white; }
+.douban-category-switch button.bg-pink-600 {
+    color: #f0fdff !important;
+    background: linear-gradient(110deg, #0891b2, #4f46e5 65%, #7c3aed) !important;
+    box-shadow: 0 0 16px rgba(56,189,248,.24), inset 0 1px rgba(255,255,255,.2);
+}
+.douban-refresh-hud {
+    border: 1px solid rgba(103,232,249,.36);
+    border-radius: 999px !important;
+    color: #e0faff;
+    background: linear-gradient(110deg, rgba(8,145,178,.78), rgba(79,70,229,.82)) !important;
+    box-shadow: 0 0 16px rgba(34,211,238,.12), inset 0 1px rgba(255,255,255,.16);
+    transition: border-color .2s, box-shadow .2s, filter .2s;
+}
+.douban-refresh-hud:hover {
+    border-color: rgba(165,243,252,.8);
+    box-shadow: 0 0 22px rgba(34,211,238,.25), inset 0 1px rgba(255,255,255,.2);
+    filter: brightness(1.1);
+}
+.douban-tag-scroll { padding-bottom: .65rem; }
+#douban-tags > button {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(125,211,252,.22) !important;
+    border-radius: 999px !important;
+    color: #bdcbe0 !important;
+    background: linear-gradient(145deg, rgba(13,23,42,.88), rgba(20,19,39,.88)) !important;
+    box-shadow: inset 0 1px rgba(255,255,255,.06);
+    padding: 7px 14px !important;
+    font-size: .78rem !important;
+    line-height: 1.2;
+    transition: color .2s, border-color .2s, background .2s, box-shadow .2s, transform .2s !important;
+}
+#douban-tags > button::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 22%;
+    right: 22%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(186,230,253,.58), transparent);
+    pointer-events: none;
+}
+#douban-tags > button:hover {
+    color: #f0fdff !important;
+    border-color: rgba(103,232,249,.62) !important;
+    background: linear-gradient(120deg, rgba(8,145,178,.24), rgba(79,70,229,.26)) !important;
+    box-shadow: 0 0 18px rgba(34,211,238,.16), inset 0 1px rgba(255,255,255,.12);
+    transform: translateY(-2px);
+}
+#douban-tags > button.bg-pink-600 {
+    color: white !important;
+    border-color: rgba(165,243,252,.8) !important;
+    background: linear-gradient(110deg, #0891b2, #4f46e5 62%, #7c3aed) !important;
+    box-shadow: 0 0 18px rgba(34,211,238,.28), inset 0 1px rgba(255,255,255,.24);
+}
+#douban-tags > button:first-child { border-style: dashed !important; }
+
+@media (max-width: 640px) {
+    .search-hud-bar { height: 58px; gap: 3px; padding: 4px; border-radius: 14px; }
+    .search-hud-bar > button:first-child { flex-basis: 58px; width: 58px; font-size: .82rem; }
+    .search-hud-bar > button:last-child { flex-basis: 68px; width: 68px; font-size: .88rem; }
+    .search-hud-bar #searchInput { padding-left: 10px; padding-right: 8px; font-size: .84rem; }
+    .douban-category-title { gap: 7px; font-size: 1.08rem; }
+    .douban-category-switch button { min-width: 48px; padding-left: 9px; padding-right: 9px; font-size: .78rem; }
+    .douban-refresh-hud { padding: 6px 9px !important; font-size: .78rem; }
+    #douban-tags > button { padding: 6px 11px !important; font-size: .72rem !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .search-hud-bar::before { animation: none; }
 }
