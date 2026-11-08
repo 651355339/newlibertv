@@ -145,6 +145,20 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
         // 尝试设置一个合理的 Referer
         'Referer': requestHeaders['referer'] || new URL(targetUrl).origin,
     };
+
+    try {
+        const urlObj = new URL(targetUrl);
+        if (urlObj.hostname.endsWith('doubanio.com')) {
+            headers['Referer'] = 'https://movie.douban.com/';
+            headers['Accept'] = 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8';
+        } else if (urlObj.hostname.endsWith('douban.com')) {
+            headers['Referer'] = 'https://movie.douban.com/';
+            headers['Accept'] = 'application/json, text/plain, */*';
+        }
+    } catch (e) {
+        // ignore
+    }
+
     // 清理空值的头
     Object.keys(headers).forEach(key => headers[key] === undefined || headers[key] === null || headers[key] === '' ? delete headers[key] : {});
 
@@ -165,8 +179,9 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
         }
 
         // 读取响应内容
-        const content = await response.text();
         const contentType = response.headers.get('content-type') || '';
+        const isText = isTextContentType(contentType);
+        const content = isText ? await response.text() : await response.buffer();
         logDebug(`请求成功: ${targetUrl}, Content-Type: ${contentType}, 内容长度: ${content.length}`);
         // 返回结果
         return { content, contentType, responseHeaders: response.headers };
@@ -177,6 +192,18 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
         // 重新抛出，确保包含原始错误信息
         throw new Error(`请求目标 URL 失败 ${targetUrl}: ${error.message}`);
     }
+}
+
+function isTextContentType(contentType = '') {
+    const normalized = contentType.toLowerCase();
+    return normalized.startsWith('text/') ||
+        normalized.includes('application/json') ||
+        normalized.includes('application/javascript') ||
+        normalized.includes('application/x-javascript') ||
+        normalized.includes('application/xml') ||
+        normalized.includes('application/vnd.apple.mpegurl') ||
+        normalized.includes('application/x-mpegurl') ||
+        normalized.includes('audio/mpegurl');
 }
 
 function isM3u8Content(content, contentType) {

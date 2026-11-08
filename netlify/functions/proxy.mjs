@@ -130,6 +130,17 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
         'Accept-Language': requestHeaders['accept-language'] || 'zh-CN,zh;q=0.9,en;q=0.8',
         'Referer': requestHeaders['referer'] || new URL(targetUrl).origin,
     };
+    try {
+        const urlObj = new URL(targetUrl);
+        if (urlObj.hostname.endsWith('doubanio.com')) {
+            headers['Referer'] = 'https://movie.douban.com/';
+            headers['Accept'] = 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8';
+        } else if (urlObj.hostname.endsWith('douban.com')) {
+            headers['Referer'] = 'https://movie.douban.com/';
+            headers['Accept'] = 'application/json, text/plain, */*';
+        }
+    } catch (e) {}
+
     Object.keys(headers).forEach(key => headers[key] === undefined || headers[key] === null || headers[key] === '' ? delete headers[key] : {});
     logDebug(`Fetching target: ${targetUrl} with headers: ${JSON.stringify(headers)}`);
     try {
@@ -140,14 +151,27 @@ async function fetchContentWithType(targetUrl, requestHeaders) {
             const err = new Error(`HTTP error ${response.status}: ${response.statusText}. URL: ${targetUrl}. Body: ${errorBody.substring(0, 200)}`);
             err.status = response.status; throw err;
         }
-        const content = await response.text();
         const contentType = response.headers.get('content-type') || '';
+        const isText = isTextContentType(contentType);
+        const content = isText ? await response.text() : await response.buffer();
         logDebug(`Fetch success: ${targetUrl}, Content-Type: ${contentType}, Length: ${content.length}`);
         return { content, contentType, responseHeaders: response.headers };
     } catch (error) {
         logDebug(`Fetch exception for ${targetUrl}: ${error.message}`);
         throw new Error(`Failed to fetch target URL ${targetUrl}: ${error.message}`);
     }
+}
+
+function isTextContentType(contentType = '') {
+    const normalized = contentType.toLowerCase();
+    return normalized.startsWith('text/') ||
+        normalized.includes('application/json') ||
+        normalized.includes('application/javascript') ||
+        normalized.includes('application/x-javascript') ||
+        normalized.includes('application/xml') ||
+        normalized.includes('application/vnd.apple.mpegurl') ||
+        normalized.includes('application/x-mpegurl') ||
+        normalized.includes('audio/mpegurl');
 }
 
 function isM3u8Content(content, contentType) {

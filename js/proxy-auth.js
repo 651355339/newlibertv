@@ -79,8 +79,8 @@ async function addAuthToProxyUrl(url) {
             return url;
         }
         
-        // 添加时间戳防止重放攻击
-        const timestamp = Date.now();
+        // 添加按5分钟对齐的时间戳，既满足服务端10分钟鉴权校验，又能充分利用浏览器HTTP缓存，避免毫秒级变动导致重复下载渲染
+        const timestamp = Math.floor(Date.now() / (5 * 60 * 1000)) * (5 * 60 * 1000);
         
         // 检查URL是否已包含查询参数
         const separator = url.includes('?') ? '&' : '?';
